@@ -1,49 +1,135 @@
-# This is a basic workflow to help you get started with Actions
+WaterFix-App
+│
+├── mobile-app
+│   ├── screens
+│   │   ├── ReportIssue.js
+│   │   ├── MapView.js
+│   │   └── StatusScreen.js
+│
+├── backend
+│   ├── server.js
+│   ├── routes
+│   │   └── reports.js
+│   ├── models
+│   │   └── Report.js
+│
+└── dashboard
+    └── admin panel
+    const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
-name: build and push
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-# Controls when the action will run. 
-on:
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+mongoose.connect("mongodb://localhost:27017/water_reports");
 
-jobs:
-  # This workflow contains a single job called "build"
-  build-all:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-22.04
+const Report = mongoose.model("Report", {
+  issueType: String,
+  description: String,
+  location: String,
+  status: String,
+  date: Date
+});
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v6
+app.post("/report", async (req,res)=>{
+  const report = new Report({
+    issueType:req.body.issueType,
+    description:req.body.description,
+    location:req.body.location,
+    status:"Reported",
+    date:new Date()
+  });
 
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6.3.0
-        with:
-          node-version-file: '.nvmrc'
+  await report.save();
+  res.send("Report submitted");
+});
 
-      - name: install npm dependencies
-        run: npm install
-      
-      - name: build code
-        run: npm run build
-      
-      - name: build docs
-        run: |
-          (cd docs-src && npm install)
-          npm run generate:headers
-          npm run docs:build
+app.get("/reports", async(req,res)=>{
+  const reports = await Report.find();
+  res.json(reports);
+});
 
-      - name: Commit files
-        run: |
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add .
-          git commit -m "BUILD" -a
+app.listen(3000, ()=>{
+  console.log("Server running");
+});
+import React, {useState} from "react";
+import {View, Text, TextInput, Button} from "react-native";
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+export default function ReportIssue(){
+
+const [issue,setIssue] = useState("");
+const [description,setDescription] = useState("");
+const [location,setLocation] = useState("");
+
+const submitReport = async () => {
+
+await fetch("http://YOURSERVER:3000/report",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+issueType:issue,
+description:description,
+location:location
+})
+});
+
+alert("Report sent successfully");
+
+};
+
+return(
+
+<View>
+
+<Text>Issue Type</Text>
+<TextInput onChangeText={setIssue} />
+
+<Text>Description</Text>
+<TextInput onChangeText={setDescription} />
+
+<Text>Location</Text>
+<TextInput onChangeText={setLocation} />
+
+<Button title="Submit Report" onPress={submitReport}/>
+
+</View>
+
+);
+
+}
+<h2>Moqhaka Municipality Water Reports</h2>
+
+<div id="reports"></div>
+
+<script>
+
+async function loadReports(){
+
+const res = await fetch("http://localhost:3000/reports");
+
+const data = await res.json();
+
+let html = "";
+
+data.forEach(r=>{
+html += `
+<div>
+<h3>${r.issueType}</h3>
+<p>${r.description}</p>
+<p>${r.location}</p>
+<p>Status: ${r.status}</p>
+</div>
+`;
+});
+
+document.getElementById("reports").innerHTML = html;
+
+}
+
+loadReports();
+
+</script>
